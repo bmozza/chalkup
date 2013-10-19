@@ -1,0 +1,18 @@
+<template name="header">
+	<div class="navbar navbar-fixed-top">
+		<div class="navbar-inner">
+			<div class="container">
+				<a class="brand" href="#">ChalkUp</a>
+				{{#if currentUser}}
+				<a href="/" class="pull-right btn logout">Logout</a>
+				{{else}}
+				<form class="navbar-form login" >
+					<input name="username" class="span2" type="text" placeholder="Username">
+					<input name="password" class="span2" type="password" placeholder="Password">
+					<button type="submit" class="btn">Sign in</button>
+				</form>
+				{{/if}}
+			</div>
+		</div>
+	</div>
+</template>

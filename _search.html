@@ -1,0 +1,43 @@
+<template name="search">
+	{{#if currentGame}}
+	<form class="game">
+		<fieldset>
+		<div class="challenger">
+			<h3>{{ name currentGame.challengerId }}</h3>
+			{{#unless isZero currentGame.challengerScore }}
+			<input type="button" class="change btn" value="{{ decrease currentGame.challengerScore }}">
+			{{/unless}}
+			{{ currentGame.challengerScore }}
+			<input type="button" class="change btn" value="{{ increase currentGame.challengerScore }}">
+		</div>
+
+		<div class="opponent">
+			<h3>{{ name currentGame.opponentId }}</h3>
+			{{#unless isZero currentGame.opponentScore }}
+			<input type="button" class="change btn" value="{{ decrease currentGame.opponentScore }}">
+			{{/unless}}
+			{{ currentGame.opponentScore }}
+			<input type="button" class="change btn" value="{{ increase currentGame.opponentScore }}">
+		</div>
+		
+		<input type="hidden" name="gameId" value="{{ currentGame._id }}" >
+		<input type="button" class="finish btn" value="Finish">
+		</fieldset>
+	</form>
+	{{else}}
+		<form class="search">
+			<fieldset>
+			<input type="text" name="keywords" placeholder="Keywords" />
+			</fieldset>
+		</form>
+		<ul class="players">
+			{{#if users}}
+				{{#each users}}
+					<li><input id="{{ this._id }}" type="button" value="Challenge {{ this.profile.name }} ({{ rating this._id }})" class="challenge btn"></li>
+				{{/each}}
+			{{else}}
+				<li>No players found...</li>
+			{{/if}}
+		</ul>
+	{{/if}}
+</template>

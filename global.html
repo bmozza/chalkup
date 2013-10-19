@@ -1,0 +1,17 @@
+<head>
+  <title>ChalkUp</title>
+	<link href='http://fonts.googleapis.com/css?family=Open+Sans:400,300,700' rel='stylesheet' type='text/css'>
+</head>
+
+<body>
+	{{> header}}
+	<div class="container">
+		<span class=".glyphicon .glyphicon-stop">&nbsp;</span>
+	{{#if currentUser}}
+		{{> profile}}
+	{{else}}
+		{{> register}}
+	{{/if}}
+	</div>
+	{{> footer}}
+</body>

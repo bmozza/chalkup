@@ -1,0 +1,13 @@
+<template name="games">
+	
+	{{#if finishedGames}}
+	<ul>
+	{{#each finishedGames}}
+		<li>{{ name challengerId }} {{ challengerScore }} - {{ opponentScore }} {{ name opponentId }}</li>
+	{{/each}}
+	</ul>
+	{{else}}
+		<p>You don't have any finished games.</p>
+	{{/if}}	
+	
+</template>
