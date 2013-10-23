@@ -1,9 +1,9 @@
 <template name="games">
 	
-	{{#if finishedGames}}
+	{{#if recentGames}}
 	<ul>
-	{{#each finishedGames}}
-		<li>{{ name challengerId }} {{ challengerScore }} - {{ opponentScore }} {{ name opponentId }}</li>
+	{{#each recentGames}}
+		<li>{{ name challengerId }} {{ challengerScore }} - {{ opponentScore }} {{ name opponentId }} {{ date finishedAt }} {{ change }}</li>
 	{{/each}}
 	</ul>
 	{{else}}

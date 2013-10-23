@@ -3,18 +3,18 @@
 	<form class="game">
 		<fieldset>
 		<div class="challenger">
-			<h3>{{ name currentGame.challengerId }}</h3>
+			<h3>{{ name currentGame.challengerId }} ({{ rating currentGame.challengerId }})</h3>
 			{{#unless isZero currentGame.challengerScore }}
-			<input type="button" class="change btn" value="{{ decrease currentGame.challengerScore }}">
+			<!--<input type="button" class="change btn" value="{{ decrease currentGame.challengerScore }}">-->
 			{{/unless}}
 			{{ currentGame.challengerScore }}
 			<input type="button" class="change btn" value="{{ increase currentGame.challengerScore }}">
 		</div>
 
 		<div class="opponent">
-			<h3>{{ name currentGame.opponentId }}</h3>
+			<h3>{{ name currentGame.opponentId }} ({{ rating currentGame.opponentId }})</h3>
 			{{#unless isZero currentGame.opponentScore }}
-			<input type="button" class="change btn" value="{{ decrease currentGame.opponentScore }}">
+		<!--	<input type="button" class="change btn" value="{{ decrease currentGame.opponentScore }}">-->
 			{{/unless}}
 			{{ currentGame.opponentScore }}
 			<input type="button" class="change btn" value="{{ increase currentGame.opponentScore }}">
@@ -31,13 +31,16 @@
 			</fieldset>
 		</form>
 		<ul class="players">
-			{{#if users}}
+			
 				{{#each users}}
-					<li><input id="{{ this._id }}" type="button" value="Challenge {{ this.profile.name }} ({{ rating this._id }})" class="challenge btn"></li>
+					<li>
+						{{ rating this._id }}. {{ this.profile.name }} 
+						{{#unless isUser this._id }}
+							<input id="{{ this._id }}" type="button" value="Challenge" class="challenge btn">  
+						{{/unless}}
+					</li>
 				{{/each}}
-			{{else}}
-				<li>No players found...</li>
-			{{/if}}
+			
 		</ul>
 	{{/if}}
 </template>

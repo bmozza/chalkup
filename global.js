@@ -10,6 +10,16 @@ if (Meteor.isClient) {
 		return Meteor.users.findOne({_id: id}).profile.rating;
 	});
 
+	Handlebars.registerHelper("date", function(datetime) {
+		d =  new Date(datetime);
+		return [d.getDate(), d.getMonth()+1, d.getFullYear()].join('/');
+	});
+	
+	Handlebars.registerHelper('isUser', function(userId) {
+		return Meteor.userId() == userId;
+
+	});
+
 	Template.search.currentGame = function(){
 		game = Games.findOne({
 			$or: [
@@ -34,14 +44,14 @@ if (Meteor.isClient) {
 		return parseInt(score) == 0;
 	};
 
-	Template.games.finishedGames = function(){
+	Template.games.recentGames = function(){
 		return Games.find({
 			$or: [
 				{challengerId: Meteor.userId()},
 				{opponentId: Meteor.userId()}
 			],
 			finishedAt: {$gt: null}
-		}).fetch();
+		}, {limit: 3, sort: {finishedAt:-1}}).fetch();
 	};
 
 	Template.header.events({
@@ -74,13 +84,12 @@ if (Meteor.isClient) {
 
 	Template.search.users = function(){
 		console.log(Session.get("keywords"));
-		if(typeof Session.get("keywords") !== "undefined" && Session.get("keywords") !== ""){
+		
 			var keywords = new RegExp(Session.get("keywords"));
 			return Meteor.users.find({
-				_id: { $ne: Meteor.userId() },
 				'profile.name': { $regex: keywords, $options: "i" } 
-			}, {limit: 10});
-		}
+			}, {limit: 10, sort: {'profile.rating':-1}});
+		
 	}
 
 	Template.search.events({
@@ -106,6 +115,7 @@ if (Meteor.isClient) {
 			Games.update(Session.get("currentGame")._id, {
 				$set: {challengerScore: event.target.value}
 			});
+			Meteor.call('rank', Session.get("currentGame").challengerId, Session.get("currentGame").opponentId);
 	  },
 
 		'click .opponent .change': function(event, template){
@@ -113,67 +123,16 @@ if (Meteor.isClient) {
 			Games.update(Session.get("currentGame")._id, {
 				$set: {opponentScore: event.target.value}
 			});
+			Meteor.call('rank', Session.get("currentGame").opponentId, Session.get("currentGame").challengerId);
 	  },
 	
 		'click .finish': function(event, template){
 			event.preventDefault();
-			var game = Session.get("currentGame");
 			Games.update(game._id, { 
-				$set: {finishedAt: event.timeStamp} 
-			});
-			
-			//Meteor.call('rank', game);
-
-			var challenger = Meteor.users.find({_id: game.challengerId}).fetch()[0];			
-			var opponent = Meteor.users.find({_id: game.opponentId}).fetch()[0];
-
-			// TODO need to cater for a draw
-			
-			var winningScore = Math.max(game.challengerScore, game.opponentScore);
-			var losingScore = Math.min(game.challengerScore, game.opponentScore);
-			var totalFrames = winningScore + losingScore;
-			var margin = winningScore - losingScore;
-			var winner, loser;
-			
-			if(margin != 0 && winningScore == game.challengerScore){
-				winner = challenger;
-				loser = opponent;
-			} else if (margin != 0 && winningScore == game.opponentScore){
-				winner = opponent;	
-				loser = challenger;
-			}
-			
-			var winner_rating = parseInt(winner.profile.rating);
-			var loser_rating = parseInt(loser.profile.rating);			
-			
-			if(winner_rating >= loser_rating){
-				ranking_difference = 1;
-			} else {
-				ranking_difference = (loser_rating - winner_rating) / 4;
-				ranking_difference = Math.min(5, ranking_difference);
-				ranking_difference = Math.max(1, ranking_difference);
-			}		
-			
-			var frame_percentage = winningScore / totalFrames;
-
-			var total_frames = Math.min(10, totalFrames) / 10;
-			
-			var change = parseInt(ranking_difference * (frame_percentage + total_frames));
-			
-			Meteor.users.update(winner._id, {
 				$set: {
-					'profile.rating':  winner_rating + change,
-					'profile.games': parseInt(winner.profile.games) + 1
+					finishedAt: event.timeStamp
 				} 
 			});
-			
-			Meteor.users.update(loser._id, {
-				$set: {
-					'profile.rating': loser_rating - change,
-					'profile.games': parseInt(loser.profile.games) + 1
-				} 
-			});
-
 	  }
 
 	});
@@ -193,7 +152,93 @@ if(Meteor.isServer){
 	});
 	
 	Meteor.methods({
-	  rank: function(game) {
+	  rank: function(winnerId, loserId) {
+			var winner = Meteor.users.find({_id: winnerId}).fetch()[0];			
+			var loser = Meteor.users.find({_id: loserId}).fetch()[0];
+
+			var EloRating, elo, girlA, girlB, ratingA, ratingB, results;
+
+			  EloRating = (function() {
+
+			    function EloRating(ratingA, ratingB, scoreA, scoreB) {
+			     	var expectedScores, newRatings;
+			      this.KFACTOR = 32;
+			      this._ratingA = ratingA;
+			      this._ratingB = ratingB;
+			      this._scoreA = scoreA;
+			      this._scoreB = scoreB;
+			      expectedScores = this._getExpectedScores(this._ratingA, this._ratingB);
+			      this._expectedA = expectedScores.a;
+			      this._expectedB = expectedScores.b;
+			      newRatings = this._getNewRatings(this._ratingA, this._ratingB, this._expectedA, this._expectedB, this._scoreA, this._scoreB);
+			      this._newRatingA = newRatings.a;
+			      this._newRatingB = newRatings.b;
+			    }
+
+			    EloRating.prototype.setNewSetings = function(ratingA, ratingB, scoreA, scoreB) {
+			      var expectedScores, newRatings;
+			      this._ratingA = ratingA;
+			      this._ratingB = ratingB;
+			      this._scoreA = scoreA;
+			      this._scoreB = scoreB;
+			      expectedScores = this._getExpectedScores(this._ratingA, this._ratingB);
+			      this._expectedA = expectedScores.a;
+			      this._expectedB = expectedScores.b;
+			      newRatings = this._getNewRatings(this._ratingA, this._ratingB, this._expectedA, this._expectedB, this._scoreA, this._scoreB);
+			      this._newRatingA = newRatings.a;
+			      return this._newRatingB = newRatings.b;
+			    };
+
+			    EloRating.prototype.getNewRatings = function() {
+			      var ratings;
+			      return ratings = {
+			        a: Math.round(this._newRatingA),
+			        b: Math.round(this._newRatingB)
+			      };
+			    };
+
+			    EloRating.prototype._getExpectedScores = function(ratingA, ratingB) {
+			      var expected, expectedScoreA, expectedScoreB;
+			      expectedScoreA = 1 / (1 + Math.pow(10, (ratingB - ratingA) / 400));
+			      expectedScoreB = 1 / (1 + Math.pow(10, (ratingA - ratingB) / 400));
+			      return expected = {
+			        a: expectedScoreA,
+			        b: expectedScoreB
+			      };
+			    };
+
+			    EloRating.prototype._getNewRatings = function(ratingA, ratingB, expectedA, expectedB, scoreA, scoreB) {
+			      var newRatingA, newRatingB, ratings;
+			      newRatingA = ratingA + Math.min(this.KFACTOR, (10 * (scoreA - expectedA)));
+			      newRatingB = ratingB + Math.min(this.KFACTOR, (10 * (scoreB - expectedB)));
+			      return ratings = {
+			        a: newRatingA,
+			        b: newRatingB
+			      };
+			    };
+
+			    return EloRating;
+
+			  })();
+
+			  elo = new EloRating();
+
+			  elo.setNewSetings(parseInt(winner.profile.rating), parseInt(loser.profile.rating), 1, 0);
+
+			  results = elo.getNewRatings();
+
+			
+			Meteor.users.update(winner._id, {
+				$set: {
+					'profile.rating':  results.a
+				} 
+			});
+			
+			Meteor.users.update(loser._id, {
+				$set: {
+					'profile.rating': results.b
+				} 
+			});
 			
 	  }
 	});
@@ -211,7 +256,7 @@ if(Meteor.isServer){
 			].forEach(function(name){
 				var username = name.split(" ")[0];
 				var password = "pass";
-				Accounts.createUser({profile: {name: name, rating: '50', games: '0'}, username: username, password: password});
+				Accounts.createUser({profile: {name: name, rating: 1400}, username: username, password: password});
 			});
 		}
 	});
