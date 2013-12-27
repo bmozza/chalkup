@@ -1,6 +1,6 @@
 Games = new Meteor.Collection("games");
 
-if (Meteor.isClient) {
+if(Meteor.isClient){
 	
 	Handlebars.registerHelper('name', function(id) {
 		return Meteor.users.findOne({_id: id}).profile.name;
