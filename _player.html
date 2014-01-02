@@ -1,0 +1,13 @@
+<template name="player">
+<li>
+	{{ rating this._id }}. {{ this.profile.name }} 
+	{{#unless isUser this._id }}
+		<input id="{{ this._id }}" type="button" value="Challenge" class="challenge btn">
+		{{#unless isFriend this._id }}
+			<input id="{{ this._id }}" type="button" value="+ Add Friend" class="befriend btn">
+		{{else}}
+			<input id="{{ this._id }}" type="button" value="- Remove Friend" class="defriend btn">
+		{{/unless}}
+	{{/unless}}
+</li>
+</template>

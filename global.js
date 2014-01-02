@@ -9,7 +9,17 @@ if(Meteor.isClient){
 	Handlebars.registerHelper('rating', function(id) {
 		return Meteor.users.findOne({_id: id}).profile.rating;
 	});
-
+	
+	Handlebars.registerHelper('rank', function(id) {
+		var users = Meteor.users.find({}, {fields: {id:1}, sort: {'profile.rating':-1, 'profile.name':1}}).fetch().map(function(user){return user._id});
+		return users.indexOf(id) + 1;
+	});
+	
+	Handlebars.registerHelper('friends', function(id) {
+		var friends = Meteor.user().profile.friends;
+		return Meteor.users.find({_id: { $in: friends }}, {sort: {'profile.rating':-1, 'profile.name':1}});
+	});
+	
 	Handlebars.registerHelper("date", function(datetime) {
 		d =  new Date(datetime);
 		return [d.getDate(), d.getMonth()+1, d.getFullYear()].join('/');
@@ -17,9 +27,12 @@ if(Meteor.isClient){
 	
 	Handlebars.registerHelper('isUser', function(userId) {
 		return Meteor.userId() == userId;
-
 	});
 
+	Handlebars.registerHelper('isFriend', function(friendId) {
+		return Meteor.user().profile.friends.indexOf(friendId) != -1;
+	});
+	
 	Template.search.currentGame = function(){
 		game = Games.findOne({
 			$or: [
@@ -83,20 +96,20 @@ if(Meteor.isClient){
 	});
 
 	Template.search.users = function(){
-		console.log(Session.get("keywords"));
-		
-			var keywords = new RegExp(Session.get("keywords"));
-			return Meteor.users.find({
-				'profile.name': { $regex: keywords, $options: "i" } 
-			}, {limit: 10, sort: {'profile.rating':-1}});
-		
+		var keywords = new RegExp(Session.get("keywords"));
+		return Meteor.users.find({
+			'profile.name': { $regex: keywords, $options: "i" } 
+		}, {limit: 10, sort: {'profile.rating':-1, 'profile.name':1}});
 	}
 
 	Template.search.events({
 	  'keyup .search': function(event, template){
 			var keywords = template.find("input[name='keywords']").value;
 			Session.set("keywords", keywords);
-	  },
+	  }
+	});
+	
+	Template.player.events({
 	
 		'click .challenge': function(event, template){
 			var opponentId = $(event.toElement).attr('id');
@@ -109,7 +122,42 @@ if(Meteor.isClient){
 				startedAt: event.timeStamp
 			});
 		},
+
+		'click .befriend': function(event, template){
+			var friendId = $(event.toElement).attr('id');
+			var friends = Meteor.user().profile.friends;
+			if(friends.indexOf(friendId) == -1){
+				friends.push(friendId);
+			}
+			Meteor.users.update(Meteor.userId(), {
+				$set: {
+					'profile.friends': friends
+				} 
+			});
+			return false;
+		},
+
+		'click .defriend': function(event, template){
+			var friendId = $(event.toElement).attr('id');
+			var friends = Meteor.user().profile.friends;
+			console.log(friends);
+			var friendIndex = friends.indexOf(friendId);
+			if(friendIndex != -1){
+				friends.splice(friendId, 1);
+			}
+			console.log(friends);
+			Meteor.users.update(Meteor.userId(), {
+				$set: {
+					'profile.friends': friends
+				} 
+			});
+			return false;
+		}
+		
+	});
 	
+	Template.search.events({
+
 		'click .challenger .change': function(event, template){
 			event.preventDefault();
 			Games.update(Session.get("currentGame")._id, {
@@ -179,7 +227,8 @@ if(Meteor.isServer){
 				} 
 			});
 			
-	  }
+	  },
+		
 	});
 	
   Meteor.startup(function(){
@@ -195,7 +244,7 @@ if(Meteor.isServer){
 			].forEach(function(name){
 				var username = name.split(" ")[0];
 				var password = "pass";
-				Accounts.createUser({profile: {name: name, rating: 1400}, username: username, password: password});
+				Accounts.createUser({profile: {name: name, rating: 1400, friends: []}, username: username, password: password});
 			});
 		}
 	});

@@ -1,0 +1,9 @@
+<template name="friends">
+	<ul class="players">
+		
+		{{#each friends currentUser}}
+			{{> player}}
+		{{/each}}
+		
+	</ul>
+</template>
